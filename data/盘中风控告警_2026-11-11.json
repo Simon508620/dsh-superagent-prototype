@@ -1,0 +1,60 @@
+{
+  "trade_date": "2026-11-11",
+  "monitor": {
+    "alerts": [
+      {
+        "code": "300507",
+        "qty": 1700,
+        "cost_price": 6.268,
+        "current_price": 5.81,
+        "prev_close": 5.85,
+        "pct_chg": -0.006837606837606844,
+        "loss_pct": -0.07306955966815575,
+        "stop_loss_pct": -0.05,
+        "action": "硬止损触发",
+        "alert_time": null
+      },
+      {
+        "code": "603069",
+        "qty": 500,
+        "cost_price": 18.87,
+        "current_price": 11.84,
+        "prev_close": 11.82,
+        "pct_chg": 0.001692047377326529,
+        "loss_pct": -0.3725490196078432,
+        "stop_loss_pct": -0.05,
+        "action": "硬止损触发",
+        "alert_time": null
+      },
+      {
+        "code": "002632",
+        "qty": 1500,
+        "cost_price": 12.993,
+        "current_price": 8.15,
+        "prev_close": 8.22,
+        "pct_chg": -0.008515815085158186,
+        "loss_pct": -0.37273916724390055,
+        "stop_loss_pct": -0.05,
+        "action": "硬止损触发",
+        "alert_time": null
+      },
+      {
+        "code": "300063",
+        "qty": 2500,
+        "cost_price": 12.194,
+        "current_price": 8.62,
+        "prev_close": 8.64,
+        "pct_chg": -0.002314814814814971,
+        "loss_pct": -0.2930949647367559,
+        "stop_loss_pct": -0.05,
+        "action": "硬止损触发",
+        "alert_time": null
+      }
+    ],
+    "checked": 5,
+    "triggered": 4,
+    "abnormal": 0,
+    "code_mismatch": 0,
+    "summary": "盘中持仓监控：检查 5 只（代码异常剔除 0 只，行情异常剔除 0 只），触发硬止损告警 4 只！（300507, 603069, 002632, 300063）"
+  }
+}

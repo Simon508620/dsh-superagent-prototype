@@ -1,0 +1,195 @@
+{
+  "date": "2026-11-09",
+  "status": "hold",
+  "signals": [
+    {
+      "action": "hold",
+      "reason": "情绪温度60.1(活跃)开仓，但无催化确认标的",
+      "confidence": 0.4
+    }
+  ],
+  "scored": [],
+  "plan": {
+    "plan_version": "1.0",
+    "generated": true,
+    "holding_days": "1-3日",
+    "stop_loss_rule": {
+      "pct": -0.05
+    },
+    "take_profit_rule": {
+      "pct": 0.1
+    },
+    "max_total_position": 0.8,
+    "max_single_position": 0.25,
+    "targets": [],
+    "total_allocated": 0,
+    "signal_confirmed": false
+  },
+  "orders": [],
+  "portfolio": {},
+  "review": "C:\\Users\\Topgun620\\DS Bot\\A股交易团队\\data\\review_2026-11-09.csv",
+  "data_health": {
+    "count": 18,
+    "sources": [
+      {
+        "source": "tencent",
+        "endpoint": "qt.gtimg.cn/q=sh600519",
+        "success": "1"
+      },
+      {
+        "source": "sina",
+        "endpoint": "Market_Center.getHQNodeData p1",
+        "success": "1"
+      },
+      {
+        "source": "eastmoney_push2",
+        "endpoint": "ulist.np 涨跌家数",
+        "success": "0",
+        "error": "RuntimeError('GET 失败（重试3次）: https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f6,f104,f105&secids=1.000001,0.399001 -> <urlopen error _ssl.c:993: The handshake operation timed o"
+      },
+      {
+        "source": "eastmoney_push2ex",
+        "endpoint": "getTopicZTPool 涨停池",
+        "success": "1"
+      },
+      {
+        "source": "eastmoney_datacenter",
+        "endpoint": "龙虎榜 RPT_DAILYBILLBOARD_DETAILS",
+        "success": "1"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "eastmoney_announce",
+        "endpoint": "np-anotice-stock 301010",
+        "success": "True",
+        "ms": "129",
+        "count": "10",
+        "rate_limited": "False",
+        "note": "东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "eastmoney_announce",
+        "endpoint": "np-anotice-stock 688801",
+        "success": "True",
+        "ms": "141",
+        "count": "10",
+        "rate_limited": "False",
+        "note": "东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "eastmoney_announce",
+        "endpoint": "np-anotice-stock 300056",
+        "success": "True",
+        "ms": "93",
+        "count": "10",
+        "rate_limited": "False",
+        "note": "东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "eastmoney_announce",
+        "endpoint": "np-anotice-stock 600715",
+        "success": "True",
+        "ms": "84",
+        "count": "10",
+        "rate_limited": "False",
+        "note": "东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "eastmoney_announce",
+        "endpoint": "np-anotice-stock 601899",
+        "success": "True",
+        "ms": "103",
+        "count": "10",
+        "rate_limited": "False",
+        "note": "东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "juchao_cninfo",
+        "endpoint": "hisAnnouncement/query 301010",
+        "success": "False",
+        "ms": "15073",
+        "count": "0",
+        "rate_limited": "False",
+        "error": "read timeout",
+        "note": "巨潮POST超时"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "juchao_cninfo",
+        "endpoint": "hisAnnouncement/query 688801",
+        "success": "True",
+        "ms": "210",
+        "count": "0",
+        "rate_limited": "False",
+        "note": "巨潮返回0条(无公告或stock参数格式需secid)"
+      },
+      {
+        "time": "2026-11-10 22:32:11",
+        "source": "juchao_cninfo",
+        "endpoint": "hisAnnouncement/query 300056",
+        "success": "True",
+        "ms": "196",
+        "count": "0",
+        "rate_limited": "False",
+        "note": "巨潮返回0条"
+      },
+      {
+        "time": "2026-11-10 22:44:56",
+        "source": "tencent",
+        "endpoint": "qt.gtimg.cn/q=sh600519",
+        "success": "1",
+        "ms": "187",
+        "count": "0",
+        "rate_limited": "1",
+        "note": null
+      },
+      {
+        "time": "2026-11-10 22:44:56",
+        "source": "sina",
+        "endpoint": "Market_Center.getHQNodeData p1",
+        "success": "1",
+        "ms": "706",
+        "count": "0",
+        "rate_limited": "100",
+        "note": null
+      },
+      {
+        "time": "2026-11-10 22:44:57",
+        "source": "eastmoney_push2",
+        "endpoint": "ulist.np 涨跌家数",
+        "success": "0",
+        "ms": "6847",
+        "count": "1",
+        "rate_limited": "0",
+        "error": "RuntimeError('GET 失败（重试3次）: https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f6,f104,f105&secids=1.000001,0.399001 -> Remote end closed connection without response')",
+        "note": null
+      },
+      {
+        "time": "2026-11-10 22:45:04",
+        "source": "eastmoney_push2ex",
+        "endpoint": "getTopicZTPool 涨停池",
+        "success": "1",
+        "ms": "381",
+        "count": "0",
+        "rate_limited": "0",
+        "note": null
+      },
+      {
+        "time": "2026-11-10 22:45:04",
+        "source": "eastmoney_datacenter",
+        "endpoint": "龙虎榜 RPT_DAILYBILLBOARD_DETAILS",
+        "success": "1",
+        "ms": "194",
+        "count": "0",
+        "rate_limited": "5",
+        "note": null
+      }
+    ]
+  },
+  "recorded_at": "2026-11-10"
+}

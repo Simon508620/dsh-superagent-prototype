@@ -1,0 +1,19 @@
+﻿time,source,endpoint,success,ms,count,rate_limited,error,note
+,tencent,qt.gtimg.cn/q=sh600519,1,,,,,
+,sina,Market_Center.getHQNodeData p1,1,,,,,
+,eastmoney_push2,ulist.np 涨跌家数,0,,,,"RuntimeError('GET 失败（重试3次）: https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f6,f104,f105&secids=1.000001,0.399001 -> <urlopen error _ssl.c:993: The handshake operation timed o",
+,eastmoney_push2ex,getTopicZTPool 涨停池,1,,,,,
+,eastmoney_datacenter,龙虎榜 RPT_DAILYBILLBOARD_DETAILS,1,,,,,
+2026-11-10 22:32:11,eastmoney_announce,np-anotice-stock 301010,True,129,10,False,,东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)
+2026-11-10 22:32:11,eastmoney_announce,np-anotice-stock 688801,True,141,10,False,,东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)
+2026-11-10 22:32:11,eastmoney_announce,np-anotice-stock 300056,True,93,10,False,,东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)
+2026-11-10 22:32:11,eastmoney_announce,np-anotice-stock 600715,True,84,10,False,,东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)
+2026-11-10 22:32:11,eastmoney_announce,np-anotice-stock 601899,True,103,10,False,,东财公告真实源: 返回10条公告原文(title_ch/notice_date/art_code)
+2026-11-10 22:32:11,juchao_cninfo,hisAnnouncement/query 301010,False,15073,0,False,read timeout,巨潮POST超时
+2026-11-10 22:32:11,juchao_cninfo,hisAnnouncement/query 688801,True,210,0,False,,巨潮返回0条(无公告或stock参数格式需secid)
+2026-11-10 22:32:11,juchao_cninfo,hisAnnouncement/query 300056,True,196,0,False,,巨潮返回0条
+2026-11-10 22:44:56,tencent,qt.gtimg.cn/q=sh600519,1,187,0,1,
+2026-11-10 22:44:56,sina,Market_Center.getHQNodeData p1,1,706,0,100,
+2026-11-10 22:44:57,eastmoney_push2,ulist.np 涨跌家数,0,6847,1,0,"RuntimeError('GET 失败（重试3次）: https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f6,f104,f105&secids=1.000001,0.399001 -> Remote end closed connection without response')"
+2026-11-10 22:45:04,eastmoney_push2ex,getTopicZTPool 涨停池,1,381,0,0,
+2026-11-10 22:45:04,eastmoney_datacenter,龙虎榜 RPT_DAILYBILLBOARD_DETAILS,1,194,0,5,

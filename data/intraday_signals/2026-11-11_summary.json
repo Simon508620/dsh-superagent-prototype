@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-11",
+  "triggered_at": "2026-11-11 09:24:09",
+  "triggered": [],
+  "rounds": [
+    {
+      "round": 1,
+      "ts": "2026-11-11 09:23:51",
+      "status": "ok",
+      "quote_count": 8,
+      "quotes": [
+        {
+          "code": "600519",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 1439.0,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": 0.0
+        },
+        {
+          "code": "300750",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 248.78,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -0.47
+        },
+        {
+          "code": "002594",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 84.1,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -0.4
+        },
+        {
+          "code": "601318",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 54.01,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -0.17
+        },
+        {
+          "code": "000858",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 74.41,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": 0.22
+        },
+        {
+          "code": "300059",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 18.7,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -0.43
+        },
+        {
+          "code": "002415",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 34.62,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -0.6
+        },
+        {
+          "code": "601899",
+          "date": "2026-11-11",
+          "open": 0.0,
+          "high": 0.0,
+          "low": 0.0,
+          "close": 27.58,
+          "volume": 0,
+          "amount": 0.0,
+          "pct_chg": -2.13
+        }
+      ],
+      "sentiment_temp": null,
+      "sector_count": 0,
+      "signals": [
+        {
+          "action": "hold",
+          "reason": "情绪冰点（温度31.0，冰点），不开仓",
+          "confidence": 0.3
+        }
+      ],
+      "buy_count": 0,
+      "buy_signals": []
+    }
+  ],
+  "signals_dir": "data\\intraday_signals"
+}

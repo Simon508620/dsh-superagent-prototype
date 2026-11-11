@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-11",
+  "user_decision": "确认，继续持仓",
+  "decision_note": "用户拍板：4只破-5%硬止损（苏奥-6.67%/海汽-37.36%/道明-36.74%/天龙-29.15%）不执行止损平仓，维持持有。团队只做盘中风控告警+复盘记录，不接券商下单，实盘处置由用户自决。",
+  "positions": {
+    "300432": {
+      "name": "富临精工",
+      "qty": 600,
+      "cost_price": 15.309,
+      "current_price": 15.19,
+      "pct_chg": 0.0,
+      "pnl_pct": -0.78,
+      "stop_loss_hit": false
+    },
+    "300507": {
+      "name": "苏奥传感",
+      "qty": 1700,
+      "cost_price": 6.268,
+      "current_price": 5.85,
+      "pct_chg": 0.0,
+      "pnl_pct": -6.67,
+      "stop_loss_hit": true
+    },
+    "603069": {
+      "name": "海汽集团",
+      "qty": 500,
+      "cost_price": 18.87,
+      "current_price": 11.82,
+      "pct_chg": 0.0,
+      "pnl_pct": -37.36,
+      "stop_loss_hit": true
+    },
+    "002632": {
+      "name": "道明光学",
+      "qty": 1500,
+      "cost_price": 12.993,
+      "current_price": 8.22,
+      "pct_chg": 0.0,
+      "pnl_pct": -36.74,
+      "stop_loss_hit": true
+    },
+    "300063": {
+      "name": "天龙集团",
+      "qty": 2500,
+      "cost_price": 12.194,
+      "current_price": 8.64,
+      "pct_chg": 0.0,
+      "pnl_pct": -29.15,
+      "stop_loss_hit": true
+    }
+  },
+  "quote_source": "腾讯 qt.gtimg.cn（真实行情，正确代码）",
+  "recorded_at": "2026-11-11T09:13:00+08:00"
+}

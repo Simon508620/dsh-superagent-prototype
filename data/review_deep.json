@@ -1,0 +1,14 @@
+{
+  "generated": true,
+  "mode": "deep_review_t2",
+  "sample_count": 2,
+  "trade_count": 0,
+  "attribution": [],
+  "quality": {
+    "by_dim": {},
+    "by_signal_type": {},
+    "best_dim": null,
+    "sample_count": 2,
+    "trade_count": 0
+  }
+}

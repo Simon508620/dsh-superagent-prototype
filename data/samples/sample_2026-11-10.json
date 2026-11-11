@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-10",
+  "status": "hold",
+  "signals": [
+    {
+      "action": "hold",
+      "reason": "情绪温度60.1(活跃)开仓，但无催化确认标的",
+      "confidence": 0.4
+    }
+  ],
+  "scored": [],
+  "plan": {
+    "plan_version": "1.0",
+    "generated": true,
+    "holding_days": "1-3日",
+    "stop_loss_rule": {
+      "pct": -0.05
+    },
+    "take_profit_rule": {
+      "pct": 0.1
+    },
+    "max_total_position": 0.8,
+    "max_single_position": 0.25,
+    "targets": [],
+    "total_allocated": 0,
+    "signal_confirmed": false
+  },
+  "orders": [],
+  "portfolio": {},
+  "data_source_health": [
+    {
+      "ts": "2026-11-10 22:44:56",
+      "source": "tencent",
+      "endpoint": "qt.gtimg.cn/q=sh600519",
+      "success": 1,
+      "elapsed_ms": 187,
+      "limited": 0,
+      "rows": 1,
+      "error": ""
+    },
+    {
+      "ts": "2026-11-10 22:44:56",
+      "source": "sina",
+      "endpoint": "Market_Center.getHQNodeData p1",
+      "success": 1,
+      "elapsed_ms": 706,
+      "limited": 0,
+      "rows": 100,
+      "error": ""
+    },
+    {
+      "ts": "2026-11-10 22:44:57",
+      "source": "eastmoney_push2",
+      "endpoint": "ulist.np 涨跌家数",
+      "success": 0,
+      "elapsed_ms": 6847,
+      "limited": 1,
+      "rows": 0,
+      "error": "RuntimeError('GET 失败（重试3次）: https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f6,f104,f105&secids=1.000001,0.399001 -> Remote end closed connection without response')"
+    },
+    {
+      "ts": "2026-11-10 22:45:04",
+      "source": "eastmoney_push2ex",
+      "endpoint": "getTopicZTPool 涨停池",
+      "success": 1,
+      "elapsed_ms": 381,
+      "limited": 0,
+      "rows": 0,
+      "error": ""
+    },
+    {
+      "ts": "2026-11-10 22:45:04",
+      "source": "eastmoney_datacenter",
+      "endpoint": "龙虎榜 RPT_DAILYBILLBOARD_DETAILS",
+      "success": 1,
+      "elapsed_ms": 194,
+      "limited": 0,
+      "rows": 5,
+      "error": ""
+    }
+  ],
+  "reason": ""
+}
