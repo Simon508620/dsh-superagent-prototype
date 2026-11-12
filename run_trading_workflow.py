@@ -225,8 +225,12 @@ def monitor_intraday_risk(trade_date: str, positions: dict | None = None) -> dic
     输入：
         trade_date: 交易日（用于落盘文件名）
         positions: 可选 {code: {"qty": int, "cost_price": float}}，缺省读 data/positions_{date}.json
-    返回：
-        {"date", "monitor", "alert_file", "ok"} 监控结果 + 告警落盘路径
+    返回（顶层扁平化 + monitor 子 dict 双写，向后兼容）：
+        {"date", "alert_file", "ok",
+         "checked", "triggered", "abnormal", "code_mismatch", "alerts", "summary",
+         "monitor": {同上 checked/triggered/... 完整子结构}}
+        顶层 checked/triggered 等为 monitor 子 dict 的镜像，调用方用顶层 .get('checked') 即可，
+        无需再下钻 result['monitor']['checked']（旧代码仍可走 monitor 子 dict）。
     """
     import json
 
@@ -318,8 +322,11 @@ def monitor_intraday_risk(trade_date: str, positions: dict | None = None) -> dic
             for a in result["alerts"]:
                 print(f"[盘中风控] [ALERT] 告警 {a['code']} 浮亏{a['loss_pct']:.2%} 触发硬止损 {a['stop_loss_pct']:.0%}（落盘：{alert_file}）")
 
-    return {"date": trade_date, "monitor": result, "alert_file": alert_file,
-            "ok": True if not positions else True}
+    # 顶层扁平化 + monitor 子 dict 双写：调用方顶层 .get('checked') 即可，旧代码仍可走 monitor
+    flattened = {"date": trade_date, "alert_file": alert_file, "ok": True}
+    flattened.update(result)
+    flattened["monitor"] = result
+    return flattened
 
 
 if __name__ == "__main__":
