@@ -24,6 +24,14 @@ import strategy
 
 INITIAL_CASH = 1_000_000.0
 
+
+def _fmt_or(val, missing: str = "—", none: str = "未返回") -> str:
+    """显示辅助：val 缺失→missing（'—'），val 为 None（接口未返回）→none，否则原值。
+    区别对待：data_source 显式置 None 表示"接口未返回该字段"，不可伪装为缺省。"""
+    if val is None:
+        return none
+    return str(val)
+
 # 默认权重（决策①）：技术30%/资金25%/题材25%/消息20%，后续实盘可调
 DEFAULT_WEIGHTS = {"technical": 0.30, "capital": 0.25, "theme": 0.25, "message": 0.20}
 
@@ -60,7 +68,9 @@ def run(trade_date: str) -> dict:
     # 2. 5层真实数据（第1/2/4/5层；不可得诚实缺省，绝不模拟）
     try:
         sentiment = data_source.fetch_sentiment(trade_date)
-        print(f"[2] 情绪数据（第1层）：温度{sentiment.get('temperature', '—')}，涨停{sentiment.get('limit_up', '—')}家")
+        print(f"[2] 情绪数据（第1层，{sentiment.get('_source', '—')}）："
+              f"温度{_fmt_or(sentiment.get('temperature'))}，"
+              f"涨停{_fmt_or(sentiment.get('limit_up'))}家")
     except Exception as e:
         sentiment = {}
         print(f"[2] 情绪数据不可得（诚实缺省）：{e}")

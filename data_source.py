@@ -262,6 +262,9 @@ def _sentiment_from_sina() -> dict:
     limit_up = sum(1 for r in rows if r["changepercent"] >= 9.8)
     limit_down = sum(1 for r in rows if r["changepercent"] <= -9.8)
     total_amt = sum(r["amount"] for r in rows) / 1e8
+    # 情绪温度快照（广度口径，可自算）：涨/(涨+跌)×100；缺涨跌家数时置 None。
+    temperature = (round(up / (up + down) * 100, 1)
+                   if (up + down) > 0 else None)
     return {
         "up_count": up, "down_count": down,
         "limit_up": limit_up, "limit_down": limit_down,
@@ -270,6 +273,7 @@ def _sentiment_from_sina() -> dict:
         "yesterday_limit_premium": None,
         "total_amount": round(total_amt, 1),
         "market_turnover": None,
+        "temperature": temperature,    # 广度温度（0-100，可自算）
         "_source": "sina_fallback",    # 口径标注：新浪聚合（真实）
         "_flat_count": sum(1 for r in rows if r["changepercent"] == 0),
     }
@@ -296,7 +300,14 @@ def fetch_sentiment(date: str | None = None) -> dict:
         max_lb = max((x["lbc"] for x in pool), default=None)
         jinlv = (round(sum(1 for x in pool if x["lbc"] >= 2) / len(pool), 4)
                  if pool else None)
-        limit_up = len(pool) if pool else None
+        # 涨停池返回空列表=接口正常但当日无涨停/盘后清空（真实 0）；
+        # 只有 _fetch_ztpool 抛异常时 limit_up 才真正"未返回"，保持 None。
+        limit_up = len(pool) if pool else 0
+
+        # 情绪温度快照（0-100）：可由涨跌家数自算（涨/(涨+跌)×100），
+        # 纯广度口径，不依赖涨停池/成交额等可能缺省字段；缺涨跌家数时不编造，置 None。
+        temperature = (round(up / (up + down) * 100, 1)
+                       if (up + down) > 0 else None)
 
         if up or down or pool:
             return {
@@ -306,6 +317,7 @@ def fetch_sentiment(date: str | None = None) -> dict:
                 "yesterday_limit_premium": None,
                 "total_amount": round(total_amt, 1),
                 "market_turnover": None,
+                "temperature": temperature,       # 广度温度（0-100，可自算）
                 "_source": "eastmoney",
                 "_flat_count": flat,
             }
