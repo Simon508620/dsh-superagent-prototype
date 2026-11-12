@@ -52,6 +52,54 @@ declare module '@deepseek-ai/cordis' { interface Context { orchestrator: SourceH
 const now = (): string => new Date().toISOString()
 
 /**
+ * How long a second process waits for the state directory lock before it reports the error: long enough to ride out the
+ * moment a restart of the first process releases the lock, short enough that a genuinely held lock still fails fast.
+ */
+const LOCK_WAIT_MS = 2_000
+/** How often the waiting process retries, and how long the holder must be silent before its lock is considered stale. */
+const LOCK_RETRY_MS = 250
+const LOCK_STALE_MS = 30_000
+
+/**
+ * A synchronous sleep that does not keep the event loop running, so a waiting start never holds Node open.
+ * `Atomics.wait` on a zero-value `Int32Array` blocks the thread for at most `ms` and returns, without a timer.
+ */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/**
+ * The error a start reports when it cannot take the state directory lock. It names the competing process and the exact
+ * remedy, instead of proper-lockfile's bare "Lock file is already being held".
+ */
+function lockedError(stateDir: string, detail: string): Error {
+  return Object.assign(new Error(
+    `Another dsh-superagent is already using this state directory (${stateDir}); ${detail}. Close the other instance and restart, or set SUPERAGENT_STATE_DIR to a separate directory.`),
+    { code: 'ELOCKED' })
+}
+
+/**
+ * Acquire the state directory lock, waiting up to `LOCK_WAIT_MS` for the current holder to release it.
+ * proper-lockfile's synchronous API forbids retries (`retries` throws `ESYNC`), so the wait is its own loop over
+ * `lockSync`: the holder that keeps its lock fresh is still alive, and one that stopped becomes stale and is taken over.
+ * `onCompromised` reports a lock the holder lost to the caller, as before.
+ */
+function acquireStateLock(stateDir: string, onCompromised: (error: Error) => void): () => Promise<void> {
+  const deadline = Date.now() + LOCK_WAIT_MS
+  for (;;) {
+    try {
+      const release = lockSync(stateDir, { stale: LOCK_STALE_MS, onCompromised })
+      return async () => { release() }
+    } catch (error) {
+      const held = (error as { code?: string }).code === 'ELOCKED'
+      if (held && Date.now() < deadline) { sleepSync(LOCK_RETRY_MS); continue }
+      if (held) throw lockedError(stateDir, 'its lock is still held')
+      throw error
+    }
+  }
+}
+
+/**
  * Composition root of dsh-superagent that connects `Store`, `Setup`, `Engine`, `SourceRegistry`, `Effects`, `Outbox`, `Passes`, `Sessions`, `Settings`, `Prompts`, `DshExecutor`, and `MasterAssessor`.
  * Exposes the `SourceHost` service on the Cordis context for source plugins and coordinates startup, setup checks, HTTP route registration, and graceful shutdown.
  * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state.
@@ -90,8 +138,8 @@ export class Runtime extends Service implements SourceHost {
     // Lock the state directory before opening the database so another process cannot migrate or write concurrently.
     mkdirSync(machine.stateDir, { recursive: true, mode: 0o700 })
     const compromised = (error: Error) => { this.runtimeHealth.set({ state: 'error', detail: error.message }); this.stopped.abort() }
-    const release = lockSync(machine.stateDir, { stale: 30_000, onCompromised: compromised })
-    this.releaseLock = async () => { release() }
+    const release = acquireStateLock(machine.stateDir, compromised)
+    this.releaseLock = release
     let opened: Store | undefined
     try {
       const report = (error: unknown) => { ctx.logger.warn('dsh-superagent: %s', String(error)) }
