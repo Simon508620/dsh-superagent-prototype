@@ -1372,7 +1372,9 @@ it('refuses a second process on the same state directory before it opens the dat
   db.close()
   const ctx = new Context()
   for (const [name, service] of Object.entries(services)) ctx.reflect.provide(name, service)
-  expect(() => new Runtime(ctx, testMachine({ stateDir: directory }), vi.fn())).toThrow(/already being held/)
+  // The constructor waits the bounded interval for the held lock, then reports an actionable error naming the state directory.
+  expect(() => new Runtime(ctx, testMachine({ stateDir: directory }), vi.fn()))
+    .toThrow(/Another dsh-superagent is already using this state directory/)
   expect(runtime.store.get(KV.store.schema)).toBe(10)
   runtime.store.set(KV.store.schema, SCHEMA_VERSION)
 })
