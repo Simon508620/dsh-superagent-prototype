@@ -12,6 +12,7 @@ let root: string
 let server: Server | undefined
 let sleepers: ChildProcess[] = []
 const control = (profile: string) => join(root, '.artifacts', 'control', 'profiles', profile)
+const profile = (name: string) => join(root, 'dsh-home', 'profiles', name)
 const program = (name: string, body: string) => writeFileSync(join(root, 'bin', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 })
 /** Spawn a dummy process whose PID can be listed by the fake ps binary; ignoreInterrupt simulates a hung graceful stop. */
 function sleeper(ignoreInterrupt = false): number {
@@ -28,6 +29,9 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'service script '))
   mkdirSync(join(root, 'scripts')); mkdirSync(join(root, 'bin'))
   copyFileSync(join(import.meta.dirname, '..', 'scripts', 'dsh-superagent'), join(root, 'scripts', 'dsh-superagent'))
+  // The profile-creation check reads `$DSH_HOME`; give every test a profile so only the new test omits it.
+  mkdirSync(profile('superagent'), { recursive: true })
+  writeFileSync(join(profile('superagent'), 'package.json'), '{}\n')
   processes()
   program('ps', `list='${root}/ps.txt'; [ -f '${root}/launched' ] && [ -f '${root}/ps-started.txt' ] && list='${root}/ps-started.txt'
 want=; while [ $# -gt 0 ]; do [ "$1" = -p ] && want=$2; shift; done
@@ -49,7 +53,7 @@ afterEach(() => {
 })
 function run(...args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise(resolve => execFile('python3', [join(root, 'scripts', 'dsh-superagent'), ...args],
-    { env: { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH}`, DSH_SUPERAGENT_PROFILE: '', DSH_SUPERAGENT_URL: '' },
+    { env: { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH}`, DSH_HOME: join(root, 'dsh-home'), DSH_SUPERAGENT_PROFILE: '', DSH_SUPERAGENT_URL: '' },
       timeout: 20_000 },
     (error, stdout, stderr) => resolve({ code: typeof error?.code === 'number' ? error.code : 0, stdout, stderr })))
 }
@@ -66,6 +70,14 @@ async function answering(state: unknown = READY, always = false): Promise<string
 const status = async (profile: string, url = 'http://127.0.0.1:9') =>
   JSON.parse((await run('status', '--profile', profile, '--url', url)).stdout) as { pids: number[]; manually_stopped: boolean }
 
+it('refuses to start when the profile does not exist and names the create command', async () => {
+  rmSync(profile('superagent'), { recursive: true, force: true })
+  const result = await run('start', '--url', 'http://127.0.0.1:9', '--timeout', '5')
+  expect(result).toMatchObject({ code: 1, stderr: expect.stringContaining('does not exist under') })
+  expect(result.stderr).toContain("dsh superagent --from-default-profile web --dump-config")
+  // Nothing was launched: the tmux shim never touched its marker.
+  expect(existsSync(join(root, 'launched'))).toBe(false)
+}, 20_000)
 it('refuses to stop when two processes serve the profile, before it writes the stop marker', async () => {
   processes(service(sleeper()), `${sleeper()} node node /opt/dsh --profile=superagent`)
   expect(await run('stop')).toMatchObject({ code: 1, stderr: expect.stringContaining('Multiple dsh-superagent processes found') })
