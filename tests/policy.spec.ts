@@ -269,6 +269,13 @@ it('renames the variables a stored prepare command reads from earlier project na
   expect(settings.executor.prepare).toBe('git worktree add "$DSH_SUPERAGENT_DIR" -b "agent/${DSH_SUPERAGENT_NAME}" "refs/x/$DSH_SUPERAGENT_TICKET"')
 })
 
+it('accepts Windows and POSIX absolute ticket directories and rejects relative ones', () => {
+  expect(SettingsSchema.parse({ executor: { directory: 'C:\\Users\\me\\work' } }).executor.directory).toBe('C:\\Users\\me\\work')
+  expect(SettingsSchema.parse({ executor: { directory: 'C:/Users/me/work' } }).executor.directory).toBe('C:/Users/me/work')
+  expect(SettingsSchema.parse({ executor: { directory: '/srv/work' } }).executor.directory).toBe('/srv/work')
+  expect(() => SettingsSchema.parse({ executor: { directory: 'relative/work' } })).toThrow()
+})
+
 it('reads a stored GitHub Source configuration that names a merge account without it', () => {
   const settings = SettingsSchema.parse(migrateSettings({ sources: { github: { enabled: true, config: { repository: 'acme/widgets', cli: 'gh-agent', mergeCli: 'gh-merge-account', pollSeconds: 120 } } } }))
   expect(settings.sources.github!.config).toEqual({ repository: 'acme/widgets', cli: 'gh-agent', pollSeconds: 120 })

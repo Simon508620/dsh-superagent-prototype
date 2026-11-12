@@ -3,6 +3,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+/** Matches an absolute path on POSIX (`/…`) or Windows (`C:\…`, `C:/…`, or a UNC `\\…` path). */
+export const ABSOLUTE_PATH = /^(?:\/|[A-Za-z]:[\\/]|\\\\)/
+
 let cached: string | undefined
 export function packageRoot(): string {
   if (cached) return cached
