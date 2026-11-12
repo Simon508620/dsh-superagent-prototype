@@ -27,6 +27,19 @@ CONTROL = ARTIFACTS / 'control'
 KEEP_LOGS = 20
 
 
+def dsh_home():
+    """Return the DeepSeek Harness home: `$DSH_HOME` or `~/.dsh`."""
+    value = os.environ.get('DSH_HOME')
+    if value and value.strip():
+        return Path(value).expanduser()
+    return Path.home() / '.dsh'
+
+
+def profile_missing(profile):
+    """Return whether the named DSH profile has no manifest, so `dsh --profile` would refuse to boot it."""
+    return not (dsh_home() / 'profiles' / profile / 'package.json').is_file()
+
+
 def control(profile):
     """Return the control directory for `profile`, creating it if needed."""
     directory = CONTROL / 'profiles' / profile
@@ -165,6 +178,11 @@ def start(args):
         dsh = shutil.which('dsh')
         if not dsh or not shutil.which('tmux'):
             raise RuntimeError('Both dsh and tmux must be on PATH.')
+        if profile_missing(args.profile):
+            raise RuntimeError(
+                f'DSH profile {args.profile!r} does not exist under {dsh_home() / "profiles"}. '
+                "Create it once with 'dsh superagent --from-default-profile web --dump-config' "
+                "(see docs/006-deployment.md, Install), then re-run this command.")
         exists = subprocess.run(['tmux', 'has-session', '-t', '=' + session],
                                 capture_output=True).returncode == 0
         if state(args.url) is not None:
