@@ -10,7 +10,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-subprocess'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, type BigIntStats } from 'node:fs'
 import { join } from 'node:path'
 import { lockSync } from 'proper-lockfile'
 import { Engine, key, reasonText, type EngineForSettings, type ReceiveResult, type Ticket, type Trigger } from '../core/index.ts'
@@ -79,9 +79,80 @@ function lockedError(stateDir: string, detail: string): Error {
 }
 
 /**
+ * A lock directory younger than this may belong to a process that acquired it and has not recorded itself as its holder
+ * yet, so a waiting start never takes it over.
+ */
+const LOCK_RECOVERY_GRACE_MS = LOCK_RETRY_MS * 2
+/** Where the process holding the lock records itself, beside proper-lockfile's `<stateDir>.lock` directory. */
+const lockOwnerFile = (stateDir: string): string => `${stateDir}.lock.owner.json`
+
+/**
+ * What the holder records: its process id, and the inode of the lock directory, which identifies that exact lock so the
+ * record of a dead process can never justify taking over a lock another process created afterwards. The inode is `'0'`
+ * on a platform or file system that does not report one, and no takeover follows from such a record.
+ */
+interface LockOwner { pid: number; ino: string }
+
+/** Reads the recorded holder of the state directory lock, or `undefined` when no readable record proves who holds it. */
+function lockOwner(stateDir: string): LockOwner | undefined {
+  try {
+    const value = JSON.parse(readFileSync(lockOwnerFile(stateDir), 'utf8')) as { pid?: unknown; ino?: unknown }
+    return typeof value.pid === 'number' && Number.isInteger(value.pid) && value.pid > 0 && typeof value.ino === 'string'
+      ? { pid: value.pid, ino: value.ino } : undefined
+  } catch { return undefined /* Missing, unreadable or half written: nothing proves the holder is gone. */ }
+}
+
+/** Whether `pid` names a running process; one this process may not signal still runs. */
+function alive(pid: number): boolean {
+  try { process.kill(pid, 0); return true } catch (error) { return (error as { code?: string }).code === 'EPERM' }
+}
+
+/** The inode of a lock directory as a comparable string, or `'0'` where the file system reports none. */
+function lockInode(lockDir: string): string {
+  try { return statSync(lockDir, { bigint: true }).ino.toString() } catch { return '0' }
+}
+
+/**
+ * Records this process as the holder of the lock directory it has just created, so a later start can tell a lock a
+ * crashed process left behind from one a running process holds. A start that cannot write the record gives the lock back
+ * and fails with the reason: a lock taken without a record could never be recovered, only waited out or removed by hand.
+ */
+function recordHolder(stateDir: string, release: () => void): void {
+  try { writeFileSync(lockOwnerFile(stateDir), JSON.stringify({ pid: process.pid, ino: lockInode(`${stateDir}.lock`) }), { mode: 0o600 }) }
+  catch (error) {
+    try { release() } catch { /* Report the record's failure, not the release's. */ }
+    throw new Error(`dsh-superagent could not record the owner of its state directory lock in ${lockOwnerFile(stateDir)}: ${error instanceof Error ? error.message : String(error)}. Start again once that file can be written.`)
+  }
+}
+
+/**
+ * Takes over the state directory lock a crashed process left behind, when its recorded owner no longer runs, the
+ * directory is still the one that process created, and it has outlived the grace period. The directory is renamed aside
+ * first: rename is atomic, so only one waiting start can take over the same abandoned lock, and a lock directory another
+ * start created or renewed is left alone (its inode differs, or its age is inside the grace period).
+ * @returns Whether this start may retry the lock immediately.
+ */
+function takeOverAbandonedLock(stateDir: string): boolean {
+  const owner = lockOwner(stateDir)
+  if (!owner || owner.ino === '0' || owner.pid === process.pid || alive(owner.pid)) return false
+  const lockDir = `${stateDir}.lock`
+  let stat: BigIntStats | undefined
+  try { stat = statSync(lockDir, { bigint: true }) } catch { return false /* Gone already: the next attempt acquires it. */ }
+  if (!stat.isDirectory() || stat.ino.toString() !== owner.ino) return false /* Another process already replaced the lock. */
+  if (Date.now() - Number(stat.mtimeMs) < LOCK_RECOVERY_GRACE_MS) return false
+  const aside = `${lockDir}.abandoned-${process.pid}-${Date.now()}`
+  try { renameSync(lockDir, aside) } catch { return false /* Another waiting start renamed it first. */ }
+  try { rmSync(aside, { recursive: true, force: true }) } catch { /* A directory that no longer holds the lock is harmless. */ }
+  try { rmSync(lockOwnerFile(stateDir), { force: true }) } catch { /* The next holder replaces the record. */ }
+  return true
+}
+
+/**
  * Acquire the state directory lock, waiting up to `LOCK_WAIT_MS` for the current holder to release it.
  * proper-lockfile's synchronous API forbids retries (`retries` throws `ESYNC`), so the wait is its own loop over
  * `lockSync`: the holder that keeps its lock fresh is still alive, and one that stopped becomes stale and is taken over.
+ * A lock whose recorded owner process has died is taken over at once instead of wedging every start until the stale
+ * threshold passes, since a backend killed by its supervisor cannot release its lock itself.
  * `onCompromised` reports a lock the holder lost to the caller, as before.
  */
 function acquireStateLock(stateDir: string, onCompromised: (error: Error) => void): () => Promise<void> {
@@ -89,12 +160,18 @@ function acquireStateLock(stateDir: string, onCompromised: (error: Error) => voi
   for (;;) {
     try {
       const release = lockSync(stateDir, { stale: LOCK_STALE_MS, onCompromised })
-      return async () => { release() }
+      recordHolder(stateDir, release)
+      return async () => {
+        // Only this process's record: a lock the holder lost to a later start belongs to that process now.
+        try { if (lockOwner(stateDir)?.pid === process.pid) rmSync(lockOwnerFile(stateDir), { force: true }) } catch { /* The next holder replaces the record. */ }
+        release()
+      }
     } catch (error) {
       const held = (error as { code?: string }).code === 'ELOCKED'
-      if (held && Date.now() < deadline) { sleepSync(LOCK_RETRY_MS); continue }
-      if (held) throw lockedError(stateDir, 'its lock is still held')
-      throw error
+      if (!held) throw error
+      if (takeOverAbandonedLock(stateDir)) continue
+      if (Date.now() < deadline) { sleepSync(LOCK_RETRY_MS); continue }
+      throw lockedError(stateDir, 'its lock is still held')
     }
   }
 }
@@ -102,7 +179,8 @@ function acquireStateLock(stateDir: string, onCompromised: (error: Error) => voi
 /**
  * Composition root of dsh-superagent that connects `Store`, `Setup`, `Engine`, `SourceRegistry`, `Effects`, `Outbox`, `Passes`, `Sessions`, `Settings`, `Prompts`, `DshExecutor`, and `MasterAssessor`.
  * Exposes the `SourceHost` service on the Cordis context for source plugins and coordinates startup, setup checks, HTTP route registration, and graceful shutdown.
- * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state.
+ * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state, taking
+ * over a lock whose recorded owner process has died, so a backend killed by its supervisor does not wedge the next start.
  */
 export class Runtime extends Service implements SourceHost {
   readonly store: Store

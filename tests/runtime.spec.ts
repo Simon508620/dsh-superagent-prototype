@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { bindScopeParent } from '@deepseek-ai/dsh-scope'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
@@ -18,7 +19,6 @@ import { SCHEMA_VERSION, Store } from '../src/app/store.ts'
 import { TextCache } from '../src/app/cache.ts'
 import { KV } from '../src/kv.ts'
 import { SettingsSchema, policyVersion, type SettingsOrigin } from '../src/policy.ts'
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { feishuKind } from '../src/sources/feishu.ts'
 import { githubKind, pollRound } from '../src/sources/github.ts'
 import { CliError, Commands } from '../src/infra/commands.ts'
@@ -214,7 +214,7 @@ beforeEach(async () => {
   runtime.store.saveSettings({ ...runtime.store.settings(), policy: { ...runtime.store.settings().policy, sources: { feishu: { allowed: [{ id: MEMBER, name: 'Alice' }], syncChat: CHAT }, github: { allowed: [{ id: 'alice' }] } } }, eval: { ...runtime.store.settings().eval, mode: 'auto' }, sources: { github: { enabled: true, config: { repository: 'acme/widgets', cli: AGENT() } }, feishu: { enabled: true, config: { cli: BOT(), chats: [{ chatId: CHAT, listen: 'all' }], directMessages: true } } } })
   deliveries.mockClear()
 })
-afterEach(async () => { expect(controller.prompt).not.toHaveBeenCalled(); await runtime?.stop(); vi.restoreAllMocks(); rmSync(directory, { recursive: true, force: true }) })
+afterEach(async () => { expect(controller.prompt).not.toHaveBeenCalled(); await runtime?.stop(); vi.restoreAllMocks(); rmSync(directory, { recursive: true, force: true }); rmSync(`${directory}.lock`, { recursive: true, force: true }); rmSync(`${directory}.lock.owner.json`, { force: true }) })
 
 it('relays an explicit member mention as a candidate and creates the ticket, acknowledgement, subscription and worker on accept', async () => {
   const { trigger, ticket, sessionId } = await acceptedTicket()
@@ -1377,6 +1377,40 @@ it('refuses a second process on the same state directory before it opens the dat
     .toThrow(/Another dsh-superagent is already using this state directory/)
   expect(runtime.store.get(KV.store.schema)).toBe(10)
   runtime.store.set(KV.store.schema, SCHEMA_VERSION)
+})
+
+it('takes over the state directory lock a process killed by its supervisor left behind, so the next start still runs', async () => {
+  await runtime.stop()
+  // A killed process runs no cleanup, so proper-lockfile's directory and the record of the process that held it remain.
+  const crashed = spawnSync(process.execPath, ['-e', 'process.exit(0)'])
+  expect(crashed.pid).toEqual(expect.any(Number))
+  const lockDir = `${directory}.lock`
+  mkdirSync(lockDir)
+  writeFileSync(`${directory}.lock.owner.json`, JSON.stringify({ pid: crashed.pid, ino: statSync(lockDir, { bigint: true }).ino.toString() }))
+  // Its lock directory has outlived the grace period that protects a start between taking the lock and recording itself.
+  const abandoned = new Date(Date.now() - 5_000)
+  utimesSync(lockDir, abandoned, abandoned)
+  const context = () => { const ctx = new Context(); for (const [name, service] of Object.entries(services)) ctx.reflect.provide(name, service); return ctx }
+  runtime = new Runtime(context(), testMachine({ stateDir: directory }), vi.fn())
+  await runtime.ready
+  expect(runtime.store.get(KV.store.schema)).toBe(SCHEMA_VERSION)
+  // It records itself under the lock it now holds, so the next crash is recovered the same way.
+  expect(JSON.parse(readFileSync(`${directory}.lock.owner.json`, 'utf8'))).toMatchObject({ pid: process.pid })
+})
+
+it('records the lock holder only while it runs, and still refuses a lock it cannot prove abandoned', async () => {
+  expect(JSON.parse(readFileSync(`${directory}.lock.owner.json`, 'utf8'))).toMatchObject({ pid: process.pid })
+  await runtime.stop()
+  expect(existsSync(`${directory}.lock.owner.json`)).toBe(false)
+  // A lock left by a version that recorded no owner cannot be proven abandoned, so it still fails with the remedy.
+  const lockDir = `${directory}.lock`
+  mkdirSync(lockDir)
+  const context = () => { const ctx = new Context(); for (const [name, service] of Object.entries(services)) ctx.reflect.provide(name, service); return ctx }
+  expect(() => new Runtime(context(), testMachine({ stateDir: directory }), vi.fn()))
+    .toThrow(/Another dsh-superagent is already using this state directory/)
+  rmSync(lockDir, { recursive: true, force: true })
+  runtime = new Runtime(context(), testMachine({ stateDir: directory }), vi.fn())
+  await runtime.ready
 })
 
 it('applies a changed prompt size limit to the next save and request without a restart', async () => {
