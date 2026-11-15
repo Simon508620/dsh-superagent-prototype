@@ -28,7 +28,7 @@ flowchart TB
 
 ### Runtime
 
-`Runtime` is the composition root; it contains no domain rules. Its constructor waits up to two seconds for the state directory lock, opens the Store and builds each component. If construction fails, it closes the Store and releases the lock. A second process on the same state directory fails with an error that names the directory and the remedy, instead of proper-lockfile's bare "Lock file is already being held".
+`Runtime` is the composition root; it contains no domain rules. Its constructor waits up to two seconds for the state directory lock, takes over a lock whose recorded owner process no longer runs (a backend killed by its supervisor cannot release its lock itself), opens the Store and builds each component. If construction fails, it closes the Store and releases the lock. A second process on the same state directory fails with an error that names the directory and the remedy, instead of proper-lockfile's bare "Lock file is already being held".
 
 Startup registers management routes and runs Setup. After setup resolves, it installs Session and Executor hooks, ensures the main Session exists, starts Policy syncs, resumes interrupted Assignments, and starts passes and effects. `ready` marks completion of startup.
 
