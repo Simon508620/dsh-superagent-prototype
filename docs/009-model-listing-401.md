@@ -1,6 +1,8 @@
-# 009 Model listing 401 (issue #23)
+# 009 Model listing 401
 
-The `[dsh-bug]` signature `generic::[llm-deepseek-api-key] model listing from <url> failed (LlmError: <url> answered HTTP <n>); using the bundled catalog` (issue #23) is a platform-side credential problem, not a defect of dsh-superagent's own code. This document records the root cause and the deployment steps the issue asked for.
+This document explains the model-listing 401 that the DSH bug reporter files under a `[dsh-bug]` signature, and gives the deployment steps the operator asked for. It builds on [006 Deployment](006-deployment.md).
+
+The `[dsh-bug]` signature `generic::[llm-deepseek-api-key] model listing from <url> failed (LlmError: <url> answered HTTP <n>); using the bundled catalog` is a platform-side credential problem, not a defect of dsh-superagent's own code. This document records the root cause and the deployment steps the operator asked for.
 
 ## Root cause
 
