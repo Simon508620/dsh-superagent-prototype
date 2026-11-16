@@ -25,6 +25,7 @@
     "locale/*.json",
     "README.md",
     "prompts",
+    "scripts/validate-lib.mjs",
     "skills"
   ],
   "dsh": {
@@ -46,6 +47,8 @@
   },
   "scripts": {
     "build": "tsdown",
+    "postbuild": "node --experimental-vm-modules --no-warnings scripts/validate-lib.mjs",
+    "validate": "node --experimental-vm-modules --no-warnings scripts/validate-lib.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "pnpm typecheck && pnpm test && pnpm build"
