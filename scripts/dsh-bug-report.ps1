@@ -18,6 +18,9 @@ $ErrorActionPreference = "Stop"
 $gh = "C:\Program Files\GitHub CLI\gh.exe"
 $appLog  = "C:\Users\Topgun620\AppData\Roaming\Superagent\app.log"
 $backLog = "C:\Users\Topgun620\AppData\Roaming\Superagent\backend.log"
+# DSH-side logs: restart/startup/bridge evidence lives here, not in Superagent logs.
+$dshLogsDir = "C:\Users\Topgun620\.dsh\logs"
+$bridgeLog  = Join-Path $dshLogsDir "lingshu-bridge-debug.log"
 $stateDir = "C:\Users\Topgun620\.dsh\state\superagent"
 $stateFile = Join-Path $stateDir "bug-report-state.json"
 # DSH home that the Superagent backend boots profiles from. Override with $env:DSH_HOME.
@@ -25,7 +28,8 @@ $dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFIL
 $label = "dsh-bug"
 $MaxNewGeneric = 5   # cap: at most this many brand-new generic signatures per run (anti-flood)
 $CooldownHours = 48        # cooldown: after an issue is created for a signature, re-suppress it for this long
-$PersistentThreshold = 2   # same local day seen >= this many times = persistent recurrence -> re-arm even in cooldown
+$PersistentThreshold = 2   # seen on >= this many DISTINCT local days = persistent recurrence -> re-arm even in cooldown
+$SnapshotLookbackHours = 24 # startup-*.log snapshots older than this are stale history, never re-file bugs for them
 
 # --- state (offsets per log, seen signature -> last-seen/count) ---
 # NOTE: PS 5.1 has no ConvertFrom-Json -AsHashtable (PS7-only). Load as PSCustomObject
@@ -33,7 +37,12 @@ $PersistentThreshold = 2   # same local day seen >= this many times = persistent
 $state = @{}
 if (Test-Path $stateFile) {
     try {
-        $raw = Get-Content $stateFile -Raw | ConvertFrom-Json
+# NOTE 2: read the state as UTF-8 explicitly. On a Chinese-locale Windows box
+# PS 5.1's Get-Content -Raw defaults to GBK, which mangles the Chinese chars in
+# signature keys (e.g. the 灵枢 bridge sig), so ConvertFrom-Json fails, $state
+# silently resets to @{}. Every offset is lost and the whole log is re-scanned,
+# re-filing every known issue every run. UTF-8 read is what makes dedupe work.
+        $raw = [System.IO.File]::ReadAllText($stateFile, (New-Object System.Text.UTF8Encoding($false))) | ConvertFrom-Json
         if ($raw) {
             $state = @{}
             foreach ($p in $raw.PSObject.Properties) {
@@ -150,10 +159,23 @@ function Get-Signature([string]$line) {
     }
     # DSH DeepSeek listing transport sends the API key as x-api-key on GET /models; the
     # platform answers 401 and the plugin falls back to its bundled catalog (issue #23).
-    # The upstream fix ships in a @deepseek-ai/dsh-llm-deepseek update, so this warning is
-    # only meaningful when it persists after upgrading DSH: keep it visible, never silent.
-    if ($line -match "model listing from .*failed .*HTTP \d+\).*using the bundled catalog") {
+    if ($line -match "model listing.*timed out|answered HTTP 401.*bundled catalog") {
         return @{ sig = "llm-deepseek-model-listing-401"; sev = "medium"; title = "DeepSeek model listing answered HTTP 401; bundled catalog fallback" }
+    }
+    # Restart/startup signatures (added 2026-11-17): the 11-14 startup failure and 11-16/17
+    # SIGTERM incidents were invisible because no signature covered them. Only flag an
+    # unready SIGTERM (ready=failed); ready=ok is a normal generation recycle.
+    if ($line -match "startup failed: \d+ required plugin did not activate") {
+        return @{ sig = "startup-failed-required-plugin"; sev = "high"; title = "DSH startup failed: required plugin did not activate" }
+    }
+    if ($line -match "invalid document at .*\.credentials\.yaml") {
+        return @{ sig = "credentials-invalid-yaml"; sev = "high"; title = "credentials-local: invalid .credentials.yaml document" }
+    }
+    if ($line -match "signal=SIGTERM.*ready=failed") {
+        return @{ sig = "bridge-sigterm-unready"; sev = "high"; title = "Lingshu bridge SIGTERM before reaching ready state" }
+    }
+    if ($line -match "handshake failed:.*initialize") {
+        return @{ sig = "bridge-handshake-timeout"; sev = "medium"; title = "Lingshu bridge initialize handshake timed out during restart" }
     }
 
     # 2. noise filter
@@ -226,7 +248,27 @@ $openSigs = if ($DryRun) { @{} } else { Get-OpenBugSigs }
 $newSigs = @{}   # sig -> {sev,title,first,last,count,stackExcerpt}
 $genericNew = 0
 
-foreach ($entry in @(@{path=$appLog; key="app"}, @{path=$backLog; key="backend"})) {
+# Log sources: Superagent app/backend + DSH-side bridge and per-startup diagnostics.
+# startup-*.log files are per-boot snapshots; key offsets by filename so new boots are picked up.
+$logEntries = @(
+    @{path=$appLog;    key="app"},
+    @{path=$backLog;   key="backend"},
+    @{path=$bridgeLog; key="bridge"}
+)
+if (Test-Path $dshLogsDir) {
+    # startup-*.log files are immutable per-boot snapshots, unlike the append-only
+    # app/backend logs. A new snapshot that lands in the watch directory exposes
+    # every old failure again on its first scan; counting those as fresh bugs
+    # re-files the same issue (startup-failed-required-plugin #38/#56, etc.).
+    # Scan only snapshots written within the lookback window; an old failure is
+    # still covered by the append-only log it came from.
+    $snapshotCutoff = (Get-Date).AddHours(-$SnapshotLookbackHours)
+    Get-ChildItem -Path $dshLogsDir -Filter "startup-*.log" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -ge $snapshotCutoff } |
+        Sort-Object LastWriteTime |
+        ForEach-Object { $logEntries += @{path=$_.FullName; key=("startup:" + $_.Name)} }
+}
+foreach ($entry in $logEntries) {
     $lastOff = if ($state["offsets"].ContainsKey($entry.key)) { [long]$state["offsets"][$entry.key] } else { 0 }
     $tail = Read-Tail $entry.path $lastOff
     $state["offsets"][$entry.key] = $tail.offset
@@ -252,14 +294,14 @@ foreach ($entry in @(@{path=$appLog; key="app"}, @{path=$backLog; key="backend"}
                 $e = $state["seen"][$sig]
                 $e["last"]  = (Get-Date).ToString("o")
                 $e["count"] = [int]$e["count"] + 1
-                # day-count tracking for persistent-recurrence detection
+                # Distinct-day tracking only: a signature re-detected on the SAME day
+                # must not inflate dayCount. The old "++ every detection" logic made
+                # every recurrence look persistent and re-armed inside cooldown.
                 $todayStr = (Get-Date).Date.ToString("yyyy-MM-dd")
                 $lastDay = if ($e.ContainsKey("lastDay")) { [string]$e["lastDay"] } else { $null }
-                if ($lastDay -eq $todayStr) {
-                    $e["dayCount"] = [int]$e["dayCount"] + 1
-                } else {
+                if ($lastDay -ne $todayStr) {
                     $e["lastDay"] = $todayStr
-                    $e["dayCount"] = 1
+                    $e["dayCount"] = [int]$e["dayCount"] + 1
                 }
             } else {
                 $state["seen"][$sig] = @{ first=(Get-Date).ToString("o"); last=(Get-Date).ToString("o"); count=1; lastDay=(Get-Date).ToString("yyyy-MM-dd"); dayCount=1 }
