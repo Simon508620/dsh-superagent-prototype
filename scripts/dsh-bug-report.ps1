@@ -20,6 +20,8 @@ $appLog  = "C:\Users\Topgun620\AppData\Roaming\Superagent\app.log"
 $backLog = "C:\Users\Topgun620\AppData\Roaming\Superagent\backend.log"
 $stateDir = "C:\Users\Topgun620\.dsh\state\superagent"
 $stateFile = Join-Path $stateDir "bug-report-state.json"
+# DSH home that the Superagent backend boots profiles from. Override with $env:DSH_HOME.
+$dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE ".dsh" }
 $label = "dsh-bug"
 $MaxNewGeneric = 5   # cap: at most this many brand-new generic signatures per run (anti-flood)
 $CooldownHours = 48        # cooldown: after an issue is created for a signature, re-suppress it for this long
@@ -122,6 +124,8 @@ $GenericHighPattern = 'Unhandled|TypeError|ReferenceError|SyntaxError|RangeError
 # --- signature extraction (specific signatures keep stable names; generic adds a normalized fallback) ---
 function Get-Signature([string]$line) {
     # 1. specific, well-understood signatures (names must stay stable for dedupe across runs).
+    #    NOTE: missing-profile is suppressed here when the profile's manifest now exists
+    #    (see the branch below): an old backend.log line replays on every later scan.
     #    NOTE: stale-lock is NOT suppressed here. Re-arm logic (cooldown + persistent
     #    recurrence) lives in the main loop; the old permanent suppression (issue #19 closed
     #    on 11-12) caused the 11-14 orphan-lock recurrence to be missed entirely.
@@ -131,6 +135,14 @@ function Get-Signature([string]$line) {
     if ($line -match 'bsk probe failed|spawn bsk ENOENT') { return $null }
     if ($line -match 'profile "([^"]+)" does not exist') {
         $p = $Matches[1]
+        # A stale bootstrap line can be replayed on a later scan of an append-only log.
+        # Once the profile's manifest exists, DSH can boot it again: the condition is gone.
+        # Resolve the manifest from $dshHome, the same root DSH uses for profiles.
+        $manifest = Join-Path $dshHome ("profiles\" + $p + "\package.json")
+        if (Test-Path $manifest) {
+            Write-Verbose "Ignore stale missing-profile:$p log line; $manifest exists"
+            return $null
+        }
         return @{ sig = "missing-profile:$p"; sev = "high"; title = "Profile `"$p`" does not exist at startup" }
     }
     if ($line -match "memory subagent stopped with max-tokens") {
